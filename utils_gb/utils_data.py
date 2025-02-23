@@ -61,13 +61,28 @@ def reduce_df_size(df):
                 else:
                     df[col] = df[col].astype(np.float64)
         else:
-            df[col] = df[col].astype('category')
-            df[col]=df[col].cat.add_categories('n/d')
+            tmp_col = pd.to_numeric(df[col], errors='coerce')
+            if tmp_col.isna().all():
+                non_null_series = df[col].dropna()  # Create a series without NaN/Null
+                total_rows = len(non_null_series)
+                unique_count = non_null_series.nunique()
+                percentage_unique = (unique_count / total_rows) if total_rows > 0 else 0 
+                if percentage_unique <= 0.2 and percentage_unique>0.0:
+                    df[col] = df[col].astype('category')
+                    df[col]=df[col].cat.add_categories('n/d')
+                elif non_null_series.str.contains('%').all():
+                    df[col] = df[col].str.replace('%', '').astype(float) / 100
+
+                else: 
+                    df[col] = df[col].astype('str')
+                    #df[col] = df[col].astype(pd.StringDtype())
+            else:
+                df[col]=tmp_col
 
     end_mem = df.memory_usage().sum() / 1024**2
     print(f'Memory usage after optimization is equal to {end_mem:.2f} MB.')
     print(f'Decreased by {(start_mem - end_mem) / start_mem:.1%}.')
     ## function optimizing dataframe size:
     ## taken from ---->  https://www.kaggle.com/davidcairuz/feature-engineering-lightgbm      
-    return df   
+    return df  
     
